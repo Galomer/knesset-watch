@@ -298,7 +298,7 @@ export default function MemberProfile() {
           ) : (
             <div className="h-8 bg-gray-100 rounded animate-pulse mx-4 mb-1" />
           )}
-          <div className="text-xs text-gray-600 mt-1 font-medium">{lang === 'he' ? 'הצ"ח פרטיות' : 'Private bills'}</div>
+          <div className="text-xs text-gray-600 mt-1 font-medium">{lang === 'he' ? 'הצעות חוק פרטיות' : 'Private bills'}</div>
           {billCounts && billCounts.privatePassed > 0 && (
             <div className="text-xs text-green-600 mt-0.5">{billCounts.privatePassed} {lang === 'he' ? 'עברו' : 'passed'}</div>
           )}
@@ -319,7 +319,7 @@ export default function MemberProfile() {
           ) : (
             <div className="h-8 bg-gray-100 rounded animate-pulse mx-4 mb-1" />
           )}
-          <div className="text-xs text-gray-600 mt-1 font-medium">{lang === 'he' ? 'הצ"ח ממשלתיות' : 'Gov. bills'}</div>
+          <div className="text-xs text-gray-600 mt-1 font-medium">{lang === 'he' ? 'הצעות חוק ממשלתיות' : 'Gov. bills'}</div>
           {billCounts && billCounts.govPassed > 0 && (
             <div className="text-xs text-green-600 mt-0.5">{billCounts.govPassed} {lang === 'he' ? 'עברו' : 'passed'}</div>
           )}
@@ -600,12 +600,12 @@ export default function MemberProfile() {
           )}
           {billFilter === 'private' && (
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-              {lang === 'he' ? 'הצ"ח פרטיות' : 'Private bills'}
+              {lang === 'he' ? 'הצעות חוק פרטיות' : 'Private bills'}
             </span>
           )}
           {billFilter === 'gov' && (
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-              {lang === 'he' ? 'הצ"ח ממשלתיות' : 'Government bills'}
+              {lang === 'he' ? 'הצעות חוק ממשלתיות' : 'Government bills'}
             </span>
           )}
           {billFilter === 'passed' && (

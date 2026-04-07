@@ -297,7 +297,7 @@ export default function AnalyticsPage() {
         ) : impactData.length === 0 ? (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-700">
             {tx(
-              'סיווג הצ"ח טרם הושלם. הפעל את scripts/classify.sh כדי לסווג את הצעות החוק.',
+              'סיווג הצעות חוק טרם הושלם. הפעל את scripts/classify.sh כדי לסווג את הצעות החוק.',
               'Bill classification not yet run. Execute scripts/classify.sh to classify bills first.'
             )}
           </div>

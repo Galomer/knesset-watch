@@ -132,7 +132,7 @@ export default function ActivityChart({ lang }: Props) {
             }`}
           >
             <span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" />
-            {t('הצ"ח פעילות', 'Active bills')}
+            {t('הצעות חוק פעילות', 'Active bills')}
           </button>
           <button
             onClick={() => setPassed(v => !v)}
@@ -154,7 +154,7 @@ export default function ActivityChart({ lang }: Props) {
           {showFiled && (
             <span>
               <span className="font-semibold text-blue-600">{totalFiled.toLocaleString()}</span>
-              {' '}{t('הצ"ח פעילות', 'active bills')}
+              {' '}{t('הצעות חוק פעילות', 'active bills')}
             </span>
           )}
           {showFiled && showPassed && <span className="text-gray-300">·</span>}
@@ -205,7 +205,7 @@ export default function ActivityChart({ lang }: Props) {
               <Legend
                 formatter={(value) =>
                   value === 'filed'
-                    ? t('הצ"ח פעילות (לפי עדכון אחרון)', 'Active bills (by last update)')
+                    ? t('הצעות חוק פעילות (לפי עדכון אחרון)', 'Active bills (by last update)')
                     : t('חוקים שנחקקו (לפי תאריך פרסום)', 'Laws enacted (by publication date)')
                 }
                 wrapperStyle={{ fontSize: 12 }}
@@ -235,7 +235,7 @@ export default function ActivityChart({ lang }: Props) {
 
       <p className="text-xs text-gray-400 mt-2">
         {t(
-          'עמודות כחולות: הצ"ח לפי תאריך עדכון אחרון בכנסת. קו ירוק: חוקים שנחקקו לפי תאריך פרסום בספר החוקים.',
+          'עמודות כחולות: הצעות חוק לפי תאריך עדכון אחרון בכנסת. קו ירוק: חוקים שנחקקו לפי תאריך פרסום בספר החוקים.',
           'Blue bars: bills by last Knesset update date. Green line: enacted laws by official gazette publication date.',
         )}
       </p>

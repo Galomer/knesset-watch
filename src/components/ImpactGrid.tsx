@@ -88,7 +88,7 @@ export default function ImpactGrid({ data, lang, singleRow = false }: Props) {
         </div>
 
         <p className="text-xs text-gray-400 mt-3">
-          {row.classifiedBills} {lang === 'he' ? 'הצ"ח מסווגות מתוך' : 'classified bills of'} {row.totalBills} {lang === 'he' ? 'בסה"כ' : 'total'}
+          {row.classifiedBills} {lang === 'he' ? 'הצעות חוק מסווגות מתוך' : 'classified bills of'} {row.totalBills} {lang === 'he' ? 'בסה"כ' : 'total'}
         </p>
       </div>
     );

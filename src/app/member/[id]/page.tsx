@@ -514,10 +514,12 @@ export default function MemberProfile() {
                       'bg-red-600 text-white';
 
           const issues = [
-            { key: 'women',     val: p.stanceWomen,    he: 'נשים',       en: 'Women' },
-            { key: 'lgbt',      val: p.stanceLgbt,     he: 'להט"ב',      en: 'LGBT+' },
-            { key: 'military',  val: p.stanceMilitary, he: 'ביטחון',     en: 'Military' },
-            { key: 'democracy', val: p.stanceDemocracy,he: 'דמוקרטיה',   en: 'Democracy' },
+            { key: 'women',       val: p.stanceWomen,       he: 'נשים',          en: 'Women' },
+            { key: 'lgbt',        val: p.stanceLgbt,        he: 'להט"ב',          en: 'LGBT+' },
+            { key: 'democracy',   val: p.stanceDemocracy,   he: 'דמוקרטיה',      en: 'Democracy' },
+            { key: 'liberalism',  val: p.stanceLiberalism,  he: 'ליברליות',       en: 'Liberalism' },
+            { key: 'army',        val: p.stanceArmy,        he: 'צבא',            en: 'Army' },
+            { key: 'settlements', val: p.stanceSettlements, he: 'התנחלויות',      en: 'Settlements' },
           ];
 
           return (
@@ -526,44 +528,6 @@ export default function MemberProfile() {
               {p.politicalSummary && (
                 <p className="text-sm text-gray-700 leading-relaxed" dir="rtl">{p.politicalSummary}</p>
               )}
-
-              {/* Left–Right axis */}
-              <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                  <span>{lang === 'he' ? '← שמאל' : '← Left'}</span>
-                  <span className="font-medium text-gray-700">
-                    {lang === 'he'
-                      ? p.leftRightScore < 35 ? 'שמאל' : p.leftRightScore < 50 ? 'מרכז-שמאל' : p.leftRightScore < 65 ? 'מרכז-ימין' : 'ימין'
-                      : p.leftRightScore < 35 ? 'Left' : p.leftRightScore < 50 ? 'Center-left' : p.leftRightScore < 65 ? 'Center-right' : 'Right'}
-                  </span>
-                  <span>{lang === 'he' ? 'ימין →' : 'Right →'}</span>
-                </div>
-                <div className="relative h-4 bg-gradient-to-r from-red-400 via-gray-200 to-blue-500 rounded-full">
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-700 rounded-full shadow"
-                    style={{ left: `calc(${p.leftRightScore}% - 8px)` }}
-                  />
-                </div>
-              </div>
-
-              {/* Extremism axis */}
-              <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                  <span>{lang === 'he' ? '← מתון' : '← Moderate'}</span>
-                  <span className="font-medium text-gray-700">
-                    {lang === 'he'
-                      ? p.extremismScore < 30 ? 'מתון' : p.extremismScore < 60 ? 'בינוני' : 'קיצוני'
-                      : p.extremismScore < 30 ? 'Moderate' : p.extremismScore < 60 ? 'Assertive' : 'Extreme'}
-                  </span>
-                  <span>{lang === 'he' ? 'קיצוני →' : 'Extreme →'}</span>
-                </div>
-                <div className="relative h-4 bg-gradient-to-r from-green-200 via-yellow-300 to-red-600 rounded-full">
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-700 rounded-full shadow"
-                    style={{ left: `calc(${p.extremismScore}% - 8px)` }}
-                  />
-                </div>
-              </div>
 
               {/* Issue stances */}
               <div>

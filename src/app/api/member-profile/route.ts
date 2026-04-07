@@ -14,12 +14,12 @@ import Anthropic from '@anthropic-ai/sdk';
 
 export interface MemberPoliticalProfile {
   personID: number;
-  leftRightScore: number;       // 0 = far left, 100 = far right
-  extremismScore: number;       // 0 = moderate, 100 = extreme
   stanceWomen: number;          // -2 to 2
   stanceLgbt: number;
-  stanceMilitary: number;
   stanceDemocracy: number;
+  stanceLiberalism: number;
+  stanceArmy: number;
+  stanceSettlements: number;
   propagandaScore: number;      // 0–100
   hypocrisyScore: number;       // 0–100
   politicalSummary: string;
@@ -127,53 +127,41 @@ ${voteLines || 'אין נתונים'}
 ${newsLines || 'אין נתונים'}
 
 ---
-הגדרות הסולמות — חיוני לקריאה לפני הניתוח:
-
-סולם שמאל-ימין בהקשר ישראלי (0–100):
-• 0–20 שמאל קיצוני: תמיכה באי-תלות פלסטינית מלאה ללא תנאים, הסתייגות מהפעלת כוח ביטחוני, ביקורת חריפה על צה"ל
-• 20–35 שמאל: תמיכה בפתרון שתי המדינות, שמירה על ביטחון, ליברליזם חברתי, שלטון חוק
-• 35–50 מרכז-שמאל: ביטחון-ראשון עם פתיחות לדיאלוג מדיני, פרוגרסיבי חברתית
-• 50–65 מרכז-ימין: ביטחון ולאומיות עם פרגמטיות, ערכים מסורתיים מתונים
-• 65–80 ימין: לאומנות חזקה, ספקנות לגבי הסדרי שלום, שמרנות חברתית
-• 80–100 ימין קיצוני: הצעות סיפוח, העברת אוכלוסייה, פגיעה בערביי ישראל, ביטול מוסדות דמוקרטיים
-
-נקודת ייחוס: ליכוד (ממשלה) = 68–72. יש עתיד (אופוזיציה) = 30–38. חד"ש = 15–22. עוצמה יהודית = 88–95.
-
-סולם מתינות-קיצוניות (0–100) — מנקודת מבט של ישראלי רציונלי:
-• 0–20 מתון מאוד: שיח מאוזן, מכבד, פועל בגבולות הנורמה הדמוקרטית
-• 20–40 מתון: עמדות חזקות אך בגבולות הדמוקרטיה, ללא הסתה
-• 40–60 בינוני: לעיתים שיח חריף, אך בסה"כ פועל בנורמות
-• 60–80 קיצוני: הסתה, פגיעה בכללי המשחק הדמוקרטי, קיצוניות בשיח
-• 80–100 קיצוני מאוד: פעולות המסכנות את הדמוקרטיה, האחדות הלאומית או הביטחון
-
-נקודת ייחוס: גנץ = 25. נתניהו = 50. סמוטריץ' = 72. בן גביר = 88.
-
 קונצנזוסים ישראליים שיש לקחת בחשבון:
-- טבח ה-7 באוקטובר 2023 הוא הטבח החמור ביותר מאז קום המדינה — כל עמדה שממעיטה בו נחשבת קיצונית
+- טבח ה-7 באוקטובר 2023 הוא הטבח החמור ביותר מאז קום המדינה
 - הצורך להגן על ישראל מפני איראן, חיזבאללה וחמאס הוא קונצנזוס רחב
 - שחרור החטופים הוא ערך לאומי עליון
 - שמירה על הדמוקרטיה ועצמאות הרשות השופטת היא ציפייה של רוב הציבור
 
-ניקוד תעמולה (0–100): עד כמה חה"כ משתמש בהסתה, שקרים, מניפולציות או פוגע ביריבים באופן לא עניני. 0=עניני לחלוטין, 100=תעמולה מסוכנת.
+הגדרות העמדות (-2 עד 2):
+• stance_women: -2=מתנגד חזק לשוויון מגדרי, 0=ניטרלי, 2=מוביל שוויון מגדרי ופמיניזם
+• stance_lgbt: -2=מתנגד חזק לזכויות להט"ב, 0=ניטרלי, 2=תומך חזק בזכויות להט"ב
+• stance_democracy: -2=פועל נגד מוסדות הדמוקרטיה/שלטון חוק, 0=ניטרלי, 2=מגן נחרץ על הדמוקרטיה
+• stance_liberalism: -2=שמרן חברתי מובהק (ערכים מסורתיים, דת ומדינה), 0=מרכז, 2=ליברל חברתי מובהק (הפרדת דת ומדינה, חופש אישי)
+• stance_army: -2=שלומי/מתנגד להפעלת כוח צבאי, 0=מאוזן, 2=ביטחוניסט חזק התומך בצה"ל ובפעולות ביטחוניות
+• stance_settlements: -2=מתנגד נחרץ להתנחלויות, 0=ניטרלי/פרגמטי, 2=תומך חזק בהרחבת ההתנחלויות
 
-ניקוד צביעות (0–100): עד כמה יש פער בין הצהרות פומביות לבין הצבעות/חקיקה בפועל. 0=עקבי לחלוטין, 100=סתירה מוחלטת.
+ניקוד תעמולה (0–100): עד כמה חה"כ משתמש בהסתה, שקרים או מניפולציות. 0=עניני לחלוטין, 100=תעמולה מסוכנת.
+ניקוד צביעות (0–100): עד כמה יש פער בין הצהרות פומביות לבין הצבעות/חקיקה. 0=עקבי לחלוטין, 100=סתירה מוחלטת.
 
 ענה JSON בלבד:
 {
-  "left_right_score": <0–100 לפי ההגדרות לעיל>,
-  "extremism_score": <0–100 לפי ההגדרות לעיל>,
-  "stance_women": <-2 עד 2: -2=מתנגד חזק לשוויון, 2=מוביל שוויון מגדרי>,
-  "stance_lgbt": <-2 עד 2: -2=מתנגד חזק, 2=תומך חזק>,
-  "stance_military": <-2 עד 2: -2=מתנגד להגנה על ישראל, 2=ביטחוניסט חזק>,
-  "stance_democracy": <-2 עד 2: -2=פוגע במוסדות הדמוקרטיה, 2=מגן על שלטון חוק ודמוקרטיה>,
+  "stance_women": <-2 עד 2>,
+  "stance_lgbt": <-2 עד 2>,
+  "stance_democracy": <-2 עד 2>,
+  "stance_liberalism": <-2 עד 2>,
+  "stance_army": <-2 עד 2>,
+  "stance_settlements": <-2 עד 2>,
   "propaganda_score": <0–100>,
   "hypocrisy_score": <0–100>,
   "political_summary": "<2–3 משפטים בעברית, ניתוח עמדות ואג'נדה>",
   "stance_notes": {
     "women": "<משפט אחד בעברית>",
     "lgbt": "<משפט אחד בעברית>",
-    "military": "<משפט אחד בעברית>",
-    "democracy": "<משפט אחד בעברית>"
+    "democracy": "<משפט אחד בעברית>",
+    "liberalism": "<משפט אחד בעברית>",
+    "army": "<משפט אחד בעברית>",
+    "settlements": "<משפט אחד בעברית>"
   },
   "propaganda_note": "<משפט אחד בעברית>",
   "hypocrisy_note": "<משפט אחד בעברית>"
@@ -203,13 +191,16 @@ ${newsLines || 'אין נתונים'}
     Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 
   const row = {
-    person_id:         personID,
-    left_right_score:  clamp(raw.left_right_score,  0, 100),
-    extremism_score:   clamp(raw.extremism_score,   0, 100),
-    stance_women:      clamp(raw.stance_women,      -2, 2),
-    stance_lgbt:       clamp(raw.stance_lgbt,       -2, 2),
-    stance_military:   clamp(raw.stance_military,   -2, 2),
-    stance_democracy:  clamp(raw.stance_democracy,  -2, 2),
+    person_id:           personID,
+    left_right_score:    50, // kept in DB for compatibility but not used in UI
+    extremism_score:     50,
+    stance_women:        clamp(raw.stance_women,       -2, 2),
+    stance_lgbt:         clamp(raw.stance_lgbt,        -2, 2),
+    stance_military:     0,  // replaced by stance_army
+    stance_democracy:    clamp(raw.stance_democracy,   -2, 2),
+    stance_liberalism:   clamp(raw.stance_liberalism,  -2, 2),
+    stance_army:         clamp(raw.stance_army,        -2, 2),
+    stance_settlements:  clamp(raw.stance_settlements, -2, 2),
     propaganda_score:  clamp(raw.propaganda_score,  0, 100),
     hypocrisy_score:   clamp(raw.hypocrisy_score,   0, 100),
     political_summary: String(raw.political_summary ?? ''),
@@ -230,20 +221,20 @@ ${newsLines || 'אין נתונים'}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toProfile(row: any, fromCache: boolean): MemberPoliticalProfile {
   return {
-    personID:         row.person_id,
-    leftRightScore:   row.left_right_score,
-    extremismScore:   row.extremism_score,
-    stanceWomen:      row.stance_women,
-    stanceLgbt:       row.stance_lgbt,
-    stanceMilitary:   row.stance_military,
-    stanceDemocracy:  row.stance_democracy,
-    propagandaScore:  row.propaganda_score,
-    hypocrisyScore:   row.hypocrisy_score,
-    politicalSummary: row.political_summary,
-    stanceNotes:      row.stance_notes ?? {},
-    propagandaNote:   row.propaganda_note,
-    hypocrisyNote:    row.hypocrisy_note,
-    generatedAt:      row.generated_at,
+    personID:           row.person_id,
+    stanceWomen:        row.stance_women,
+    stanceLgbt:         row.stance_lgbt,
+    stanceDemocracy:    row.stance_democracy,
+    stanceLiberalism:   row.stance_liberalism ?? 0,
+    stanceArmy:         row.stance_army ?? 0,
+    stanceSettlements:  row.stance_settlements ?? 0,
+    propagandaScore:    row.propaganda_score,
+    hypocrisyScore:     row.hypocrisy_score,
+    politicalSummary:   row.political_summary,
+    stanceNotes:        row.stance_notes ?? {},
+    propagandaNote:     row.propaganda_note,
+    hypocrisyNote:      row.hypocrisy_note,
+    generatedAt:        row.generated_at,
     fromCache,
   };
 }

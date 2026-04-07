@@ -10,8 +10,9 @@ import { RealMember, RealBill } from '@/lib/knesset-api';
 import ImpactGrid from '@/components/ImpactGrid';
 import type { ImpactData } from '@/app/api/impact/route';
 import type { BillClassification } from '@/lib/classifications';
-import { ArrowLeft, ArrowRight, Sparkles, Loader2, RefreshCw, ExternalLink, ThumbsUp, ThumbsDown, Minus, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock, XCircle, Newspaper } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Loader2, RefreshCw, ExternalLink, ThumbsUp, ThumbsDown, Minus, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock, XCircle, Newspaper, ShieldAlert, Scale } from 'lucide-react';
 import type { NewsArticle } from '@/app/api/member-news/route';
+import type { MemberPoliticalProfile } from '@/app/api/member-profile/route';
 import { GROUPS, GROUP_LABEL, STANCE_COLOR, FINANCIAL_COLOR, type Stance, type FinancialImpact } from '@/lib/classifications';
 
 interface RealVote {
@@ -89,6 +90,9 @@ export default function MemberProfile() {
   const [loading, setLoading] = useState(true);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [politicalProfile, setPoliticalProfile] = useState<MemberPoliticalProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileGenerated, setProfileGenerated] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -190,6 +194,21 @@ export default function MemberProfile() {
         .then(r => r.json())
         .then(data => setBillSummaries(prev => new Map(prev).set(billID, data)))
         .catch(() => setBillSummaries(prev => new Map(prev).set(billID, 'error')));
+    }
+  }
+
+  async function generatePoliticalProfile() {
+    if (!member || profileLoading) return;
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/member-profile?personID=${member.PersonID}`);
+      const data = await res.json();
+      setPoliticalProfile(data);
+      setProfileGenerated(true);
+    } catch {
+      setProfileGenerated(true); // stop spinner even on error
+    } finally {
+      setProfileLoading(false);
     }
   }
 
@@ -431,6 +450,180 @@ export default function MemberProfile() {
           <ImpactGrid data={[impactData]} lang={lang} singleRow />
         </div>
       )}
+
+      {/* ── Political Profile ──────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+            <Scale size={16} className="text-blue-600" />
+            {lang === 'he' ? 'פרופיל פוליטי (AI)' : 'Political Profile (AI)'}
+          </h2>
+          {!profileGenerated && !politicalProfile && (
+            <button
+              onClick={generatePoliticalProfile}
+              disabled={profileLoading}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+            >
+              {profileLoading
+                ? <><Loader2 size={14} className="animate-spin" />{lang === 'he' ? 'מנתח…' : 'Analyzing…'}</>
+                : <><Sparkles size={14} />{lang === 'he' ? 'נתח פרופיל' : 'Analyze Profile'}</>}
+            </button>
+          )}
+          {politicalProfile && (
+            <button
+              onClick={generatePoliticalProfile}
+              disabled={profileLoading}
+              className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+            >
+              <RefreshCw size={12} className={profileLoading ? 'animate-spin' : ''} />
+              {lang === 'he' ? 'רענן' : 'Refresh'}
+            </button>
+          )}
+        </div>
+
+        {!politicalProfile && !profileLoading && !profileGenerated && (
+          <p className="text-sm text-gray-400">
+            {lang === 'he'
+              ? 'ניתוח עמדות פוליטיות, סולמות ליברליזם ושמרנות, עמדות בנושאים מרכזיים ומדדי תעמולה וצביעות — על בסיס חקיקה, הצבעות וכתבות.'
+              : 'Analysis of political positions, liberal/conservative scale, stances on key issues, and propaganda/hypocrisy scores — based on bills, votes, and news.'}
+          </p>
+        )}
+
+        {profileLoading && !politicalProfile && (
+          <div className="flex items-center gap-2 text-gray-400 py-4">
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-sm">{lang === 'he' ? 'מנתח חקיקה, הצבעות וכתבות…' : 'Analyzing bills, votes and news…'}</span>
+          </div>
+        )}
+
+        {politicalProfile && (() => {
+          const p = politicalProfile;
+
+          const stanceLabel = (v: number, he: boolean) => {
+            if (v >=  2) return he ? 'תומך חזק' : 'Strong support';
+            if (v >=  1) return he ? 'תומך'      : 'Supportive';
+            if (v ===  0) return he ? 'ניטרלי'   : 'Neutral';
+            if (v >= -1) return he ? 'מתנגד'     : 'Against';
+            return                   he ? 'מתנגד חזק' : 'Strongly against';
+          };
+          const stanceColor = (v: number) =>
+            v >=  2 ? 'bg-green-600 text-white' :
+            v >=  1 ? 'bg-green-100 text-green-800' :
+            v ===  0 ? 'bg-gray-100 text-gray-600' :
+            v >= -1 ? 'bg-red-100 text-red-800' :
+                      'bg-red-600 text-white';
+
+          const issues = [
+            { key: 'women',     val: p.stanceWomen,    he: 'נשים',       en: 'Women' },
+            { key: 'lgbt',      val: p.stanceLgbt,     he: 'להט"ב',      en: 'LGBT+' },
+            { key: 'military',  val: p.stanceMilitary, he: 'ביטחון',     en: 'Military' },
+            { key: 'democracy', val: p.stanceDemocracy,he: 'דמוקרטיה',   en: 'Democracy' },
+          ];
+
+          return (
+            <div className="space-y-5">
+              {/* Political summary */}
+              {p.politicalSummary && (
+                <p className="text-sm text-gray-700 leading-relaxed" dir="rtl">{p.politicalSummary}</p>
+              )}
+
+              {/* Left–Right axis */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                  <span>{lang === 'he' ? '← שמאל' : '← Left'}</span>
+                  <span className="font-medium text-gray-700">
+                    {lang === 'he'
+                      ? p.leftRightScore < 35 ? 'שמאל' : p.leftRightScore < 50 ? 'מרכז-שמאל' : p.leftRightScore < 65 ? 'מרכז-ימין' : 'ימין'
+                      : p.leftRightScore < 35 ? 'Left' : p.leftRightScore < 50 ? 'Center-left' : p.leftRightScore < 65 ? 'Center-right' : 'Right'}
+                  </span>
+                  <span>{lang === 'he' ? 'ימין →' : 'Right →'}</span>
+                </div>
+                <div className="relative h-4 bg-gradient-to-r from-red-400 via-gray-200 to-blue-500 rounded-full">
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-700 rounded-full shadow"
+                    style={{ left: `calc(${p.leftRightScore}% - 8px)` }}
+                  />
+                </div>
+              </div>
+
+              {/* Extremism axis */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                  <span>{lang === 'he' ? '← מתון' : '← Moderate'}</span>
+                  <span className="font-medium text-gray-700">
+                    {lang === 'he'
+                      ? p.extremismScore < 30 ? 'מתון' : p.extremismScore < 60 ? 'בינוני' : 'קיצוני'
+                      : p.extremismScore < 30 ? 'Moderate' : p.extremismScore < 60 ? 'Assertive' : 'Extreme'}
+                  </span>
+                  <span>{lang === 'he' ? 'קיצוני →' : 'Extreme →'}</span>
+                </div>
+                <div className="relative h-4 bg-gradient-to-r from-green-200 via-yellow-300 to-red-600 rounded-full">
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-gray-700 rounded-full shadow"
+                    style={{ left: `calc(${p.extremismScore}% - 8px)` }}
+                  />
+                </div>
+              </div>
+
+              {/* Issue stances */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  {lang === 'he' ? 'עמדות בנושאים מרכזיים' : 'Stances on Key Issues'}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {issues.map(issue => (
+                    <div key={issue.key} className="flex items-start gap-2 bg-gray-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-gray-700">
+                            {lang === 'he' ? issue.he : issue.en}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${stanceColor(issue.val)}`}>
+                            {stanceLabel(issue.val, lang === 'he')}
+                          </span>
+                        </div>
+                        {p.stanceNotes[issue.key] && (
+                          <p className="text-xs text-gray-500 leading-snug" dir="rtl">
+                            {p.stanceNotes[issue.key]}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Propaganda + Hypocrisy bars */}
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: lang === 'he' ? 'תעמולה / הסתה' : 'Propaganda', score: p.propagandaScore, note: p.propagandaNote, color: 'bg-orange-500' },
+                  { label: lang === 'he' ? 'צביעות' : 'Hypocrisy',         score: p.hypocrisyScore,  note: p.hypocrisyNote,  color: 'bg-purple-500' },
+                ].map(({ label, score, note, color }) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                        <ShieldAlert size={11} />
+                        {label}
+                      </span>
+                      <span className="text-xs font-bold text-gray-700">{score}/100</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+                    </div>
+                    {note && <p className="text-xs text-gray-500 mt-1 leading-snug" dir="rtl">{note}</p>}
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-gray-400">
+                {lang === 'he'
+                  ? `ניתוח AI מבוסס חקיקה, הצבעות וכתבות · ${new Date(p.generatedAt).toLocaleDateString('he-IL')}`
+                  : `AI analysis based on bills, votes & news · ${new Date(p.generatedAt).toLocaleDateString('en-US')}`}
+              </p>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Bills table */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">

@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useRef } from 'react';
 import { useLang } from '@/lib/lang-context';
-import { RefreshCw, ChevronDown, ChevronUp, Users, CheckSquare, FileText, BarChart3, HeartHandshake, TrendingUp } from 'lucide-react';
+import { RefreshCw, Users, HeartHandshake, TrendingUp } from 'lucide-react';
 import ImpactGrid from '@/components/ImpactGrid';
 import ActivityChart from '@/components/ActivityChart';
 import type { ImpactData } from '@/app/api/impact/route';
@@ -17,12 +16,6 @@ interface PartyStats {
   Members: number[];
   BillsProposed: number;
   BillsPassed: number;
-}
-
-interface MemberName {
-  PersonID: number;
-  FullName: string;
-  FullNameEng: string;
 }
 
 const PARTY_COLORS: Record<number, string> = {
@@ -46,43 +39,154 @@ function getColor(factionID: number, isCoalition: boolean) {
   return PARTY_COLORS[factionID] ?? (isCoalition ? '#2563eb' : '#6b7280');
 }
 
+// ── SVG Donut Chart ─────────────────────────────────────────────────────────
+const SIZE = 280;
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const R_OUTER = 120;
+const R_INNER = 70;
+
+function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
+  const rad = ((deg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
+  const start = polarToCartesian(cx, cy, r, endDeg);
+  const end   = polarToCartesian(cx, cy, r, startDeg);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 0 ${end.x} ${end.y}`;
+}
+
+function donutSlicePath(cx: number, cy: number, rOuter: number, rInner: number, startDeg: number, endDeg: number) {
+  const o1 = polarToCartesian(cx, cy, rOuter, startDeg);
+  const o2 = polarToCartesian(cx, cy, rOuter, endDeg);
+  const i1 = polarToCartesian(cx, cy, rInner, endDeg);
+  const i2 = polarToCartesian(cx, cy, rInner, startDeg);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return [
+    `M ${o1.x} ${o1.y}`,
+    `A ${rOuter} ${rOuter} 0 ${large} 1 ${o2.x} ${o2.y}`,
+    `L ${i1.x} ${i1.y}`,
+    `A ${rInner} ${rInner} 0 ${large} 0 ${i2.x} ${i2.y}`,
+    'Z',
+  ].join(' ');
+}
+
+interface TooltipState {
+  x: number; y: number;
+  name: string; seats: number; pct: string;
+  isCoalition: boolean;
+}
+
+function DonutChart({ parties, totalSeats, lang }: { parties: PartyStats[]; totalSeats: number; lang: string }) {
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const tx = (he: string, en: string) => lang === 'he' ? he : en;
+
+  let cursor = 0;
+  const slices = parties.map(p => {
+    const deg = (p.Seats / totalSeats) * 360;
+    const start = cursor;
+    const end = cursor + deg;
+    cursor = end;
+    return { ...p, start, end, deg };
+  });
+
+  const handleEnter = (e: React.MouseEvent, p: typeof slices[0]) => {
+    const rect = svgRef.current!.getBoundingClientRect();
+    setTooltip({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      name: lang === 'he' ? p.Name : p.NameEng,
+      seats: p.Seats,
+      pct: ((p.Seats / totalSeats) * 100).toFixed(1),
+      isCoalition: p.IsCoalition,
+    });
+  };
+
+  const handleMove = (e: React.MouseEvent) => {
+    if (!tooltip || !svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    setTooltip(t => t ? { ...t, x: e.clientX - rect.left, y: e.clientY - rect.top } : null);
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: SIZE, height: SIZE }}>
+        <svg ref={svgRef} width={SIZE} height={SIZE} onMouseLeave={() => setTooltip(null)} onMouseMove={handleMove}>
+          {slices.map(p => (
+            <path
+              key={p.FactionID}
+              d={donutSlicePath(CX, CY, R_OUTER, R_INNER, p.start, p.end)}
+              fill={getColor(p.FactionID, p.IsCoalition)}
+              opacity={p.IsCoalition ? 1 : 0.65}
+              stroke="white"
+              strokeWidth={1.5}
+              className="cursor-pointer transition-opacity hover:opacity-90"
+              onMouseEnter={e => handleEnter(e, p)}
+            />
+          ))}
+          {/* Center label */}
+          <text x={CX} y={CY - 10} textAnchor="middle" className="fill-gray-800" fontSize={28} fontWeight={700}>
+            {totalSeats}
+          </text>
+          <text x={CX} y={CY + 14} textAnchor="middle" className="fill-gray-500" fontSize={12}>
+            {tx('מנדטים', 'seats')}
+          </text>
+        </svg>
+
+        {/* Tooltip */}
+        {tooltip && (
+          <div
+            className="pointer-events-none absolute z-10 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap"
+            style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
+          >
+            <div className="font-bold">{tooltip.name}</div>
+            <div>{tooltip.seats} {tx('מנדטים', 'seats')} · {tooltip.pct}%</div>
+            <div className="text-gray-400">{tooltip.isCoalition ? tx('קואליציה', 'Coalition') : tx('אופוזיציה', 'Opposition')}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-4 text-xs text-gray-600 max-w-sm">
+        {parties.map(p => (
+          <span key={p.FactionID} className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: getColor(p.FactionID, p.IsCoalition), opacity: p.IsCoalition ? 1 : 0.65 }}
+            />
+            {lang === 'he' ? p.Name.split(' ')[0] : p.NameEng.split(' ')[0]}
+            <span className="text-gray-400">{((p.Seats / (parties.reduce((s, x) => s + x.Seats, 0) || 120)) * 100).toFixed(0)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
   const { lang } = useLang();
   const isRTL = lang === 'he';
   const [parties, setParties] = useState<PartyStats[]>([]);
-  const [memberNames, setMemberNames] = useState<Map<number, MemberName>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [billsLoading, setBillsLoading] = useState(true);
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const [metric, setMetric] = useState<'seats' | 'passed' | 'proposed'>('seats');
-  const [groupFilter, setGroupFilter] = useState<'all' | 'coalition' | 'opposition'>('all');
-  const [impactData, setImpactData]   = useState<ImpactData[]>([]);
+  const [impactData, setImpactData] = useState<ImpactData[]>([]);
   const [impactLoading, setImpactLoading] = useState(true);
 
   useEffect(() => {
-    // Load party seats + member names in parallel (both cached)
-    Promise.all([
-      fetch('/api/parties').then(r => r.json()),
-      fetch('/api/members').then(r => r.json()),
-    ]).then(([partyData, memberData]: [PartyStats[], MemberName[]]) => {
-        setParties(partyData);
-        const nameMap = new Map<number, MemberName>();
-        for (const m of memberData) nameMap.set(m.PersonID, m);
-        setMemberNames(nameMap);
-        setLoading(false);
-      })
+    fetch('/api/parties')
+      .then(r => r.json())
+      .then((data: PartyStats[]) => { setParties(data); setLoading(false); })
       .catch(() => setLoading(false));
 
-    // Load analytics (bills per party)
     fetch('/api/analytics')
       .then(r => r.json())
-      .then((data: PartyStats[]) => {
-        if (data.length > 0) setParties(data);
-        setBillsLoading(false);
-      })
-      .catch(() => setBillsLoading(false));
+      .then((data: PartyStats[]) => { if (data.length > 0) setParties(data); })
+      .catch(() => {});
 
-    // Load population impact heatmap
     fetch('/api/impact?type=parties')
       .then(r => r.json())
       .then((data: ImpactData[]) => { setImpactData(data); setImpactLoading(false); })
@@ -91,22 +195,10 @@ export default function AnalyticsPage() {
 
   const tx = (he: string, en: string) => lang === 'he' ? he : en;
 
-  const coalition = parties.filter(p => p.IsCoalition);
+  const coalition  = parties.filter(p => p.IsCoalition);
   const opposition = parties.filter(p => !p.IsCoalition);
   const totalSeats = parties.reduce((s, p) => s + p.Seats, 0) || 120;
   const coalitionSeats = coalition.reduce((s, p) => s + p.Seats, 0);
-
-  const filteredParties = groupFilter === 'all' ? parties
-    : groupFilter === 'coalition' ? parties.filter(p => p.IsCoalition)
-    : parties.filter(p => !p.IsCoalition);
-
-  const displayData = metric === 'seats'
-    ? filteredParties.map(p => ({ ...p, value: p.Seats, max: totalSeats }))
-    : metric === 'passed'
-    ? filteredParties.map(p => ({ ...p, value: p.BillsPassed ?? 0, max: Math.max(...filteredParties.map(x => x.BillsPassed ?? 0)) || 1 }))
-    : filteredParties.map(p => ({ ...p, value: p.BillsProposed ?? 0, max: Math.max(...filteredParties.map(x => x.BillsProposed ?? 0)) || 1 }));
-
-  const sortedDisplay = [...displayData].sort((a, b) => b.value - a.value);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -117,7 +209,7 @@ export default function AnalyticsPage() {
           {tx('לוח אנליטיקה', 'Analytics Dashboard')}
         </h1>
         <p className="text-gray-500">
-          {tx('כנסת ה-25 · השוואת סיעות', '25th Knesset · Party Comparison')}
+          {tx('כנסת ה-25 · הרכב הכנסת ופעילות חקיקתית', '25th Knesset · Composition & Legislative Activity')}
         </p>
       </div>
 
@@ -156,37 +248,15 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Seat distribution bar */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <div className="flex h-12 rounded-xl overflow-hidden gap-px mb-3">
-            {parties.map(p => (
-              <div
-                key={p.FactionID}
-                className="relative group cursor-pointer transition-opacity hover:opacity-80"
-                style={{
-                  width: `${(p.Seats / totalSeats) * 100}%`,
-                  backgroundColor: getColor(p.FactionID, p.IsCoalition),
-                  opacity: p.IsCoalition ? 1 : 0.6,
-                }}
-                title={`${lang === 'he' ? p.Name : p.NameEng}: ${p.Seats} ${tx('מנדטים', 'seats')}`}
-              >
-                {p.Seats >= 5 && (
-                  <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
-                    {p.Seats}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-            {parties.map(p => (
-              <span key={p.FactionID} className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full inline-block"
-                  style={{ backgroundColor: getColor(p.FactionID, p.IsCoalition), opacity: p.IsCoalition ? 1 : 0.6 }} />
-                {lang === 'he' ? p.Name.split(' ')[0] : p.NameEng}
-              </span>
-            ))}
-          </div>
+        {/* Donut chart */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 flex justify-center">
+          {loading ? (
+            <div className="flex items-center gap-2 text-gray-400 py-20">
+              <RefreshCw size={18} className="animate-spin" />
+            </div>
+          ) : (
+            <DonutChart parties={parties} totalSeats={totalSeats} lang={lang} />
+          )}
         </div>
       </section>
 
@@ -204,179 +274,6 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-8">
           <ActivityChart lang={lang} />
         </div>
-      </section>
-
-      {/* ── SECTION 3: Bill Comparison ──────────────────────────────────── */}
-      <section>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <BarChart3 size={20} className="text-blue-600" />
-            {tx('השוואת סיעות', 'Party Comparison')}
-          </h2>
-
-          {/* Coalition/Opposition filter */}
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            {([
-              ['all',        tx('הכל', 'All')],
-              ['coalition',  tx('קואליציה', 'Coalition')],
-              ['opposition', tx('אופוזיציה', 'Opposition')],
-            ] as [string, string][]).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setGroupFilter(val as typeof groupFilter)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  groupFilter === val ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Metric toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            {([
-              ['seats',    tx('מנדטים','Seats'),    <Users key="s" size={13}/>],
-              ['passed',   tx('חוקים עברו','Laws Passed'), <CheckSquare key="p" size={13}/>],
-              ['proposed', tx('הצ"ח','Bills Filed'),  <FileText key="b" size={13}/>],
-            ] as [string, string, React.ReactNode][]).map(([val, label, icon]) => (
-              <button
-                key={val}
-                onClick={() => setMetric(val as typeof metric)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  metric === val ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {icon}{label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Bills loading notice */}
-        {billsLoading && metric !== 'seats' && (
-          <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4">
-            <RefreshCw size={14} className="animate-spin" />
-            {tx('מחשב נתוני חוקים — עשוי לקחת כמה שניות…', 'Computing bill data — may take a few seconds…')}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20 gap-3 text-gray-500">
-            <RefreshCw size={20} className="animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {sortedDisplay.map((party, rank) => {
-              const barPct = party.max > 0 ? (party.value / party.max) * 100 : 0;
-              const color = getColor(party.FactionID, party.IsCoalition);
-              const isOpen = expanded === party.FactionID;
-              const pName = lang === 'he' ? party.Name : party.NameEng;
-
-              return (
-                <div key={party.FactionID}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-300 transition-colors">
-                  <button
-                    className="w-full text-left px-5 py-4"
-                    onClick={() => setExpanded(isOpen ? null : party.FactionID)}
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Rank */}
-                      <span className="text-lg font-bold text-gray-300 w-6 flex-shrink-0">
-                        {rank + 1}
-                      </span>
-
-                      {/* Party name + badge */}
-                      <div className="w-40 flex-shrink-0 min-w-0">
-                        <div className="font-bold text-gray-900 text-sm truncate">{pName}</div>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                          party.IsCoalition ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {party.IsCoalition ? tx('קואליציה','Coalition') : tx('אופוזיציה','Opposition')}
-                        </span>
-                      </div>
-
-                      {/* Bar */}
-                      <div className="flex-1 flex items-center gap-3">
-                        <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${barPct}%`, backgroundColor: color, opacity: party.IsCoalition ? 1 : 0.7 }}
-                          />
-                        </div>
-                        <span className="text-xl font-bold text-gray-900 w-12 text-right flex-shrink-0">
-                          {party.value}
-                        </span>
-                      </div>
-
-                      {/* Context stats */}
-                      <div className="hidden sm:flex gap-4 flex-shrink-0 text-xs text-gray-500">
-                        <div className="text-center">
-                          <div className="font-semibold text-gray-700">{party.Seats}</div>
-                          <div>{tx('מנדטים','Seats')}</div>
-                        </div>
-                        {!billsLoading && (
-                          <>
-                            <div className="text-center">
-                              <div className="font-semibold text-gray-700">{party.BillsPassed ?? '—'}</div>
-                              <div>{tx('עברו','Passed')}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="font-semibold text-gray-700">{party.BillsProposed ?? '—'}</div>
-                              <div>{tx('הוגשו','Filed')}</div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Expand icon */}
-                      {isOpen ? <ChevronUp size={16} className="text-gray-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />}
-                    </div>
-                  </button>
-
-                  {/* Drill-down: members */}
-                  {isOpen && (
-                    <div className="border-t border-gray-100 px-5 py-4 bg-gray-50">
-                      <p className="text-xs text-gray-500 font-medium mb-3">
-                        {tx(`${party.Seats} חברי כנסת`, `${party.Seats} Members`)}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {(party.Members ?? []).map(pid => {
-                          const m = memberNames.get(pid);
-                          const displayName = m
-                            ? (lang === 'he' ? m.FullName : (m.FullNameEng || m.FullName))
-                            : `#${pid}`;
-                          return (
-                            <Link
-                              key={pid}
-                              href={`/member/${pid}`}
-                              className="text-xs bg-white border border-gray-200 hover:border-blue-400 hover:text-blue-700 px-2.5 py-1 rounded-full transition-colors"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              {displayName}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-3">
-                        {tx('לחץ על חבר כנסת לפרופיל המלא', 'Click a member to see their full profile')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!billsLoading && !loading && (
-          <p className="text-xs text-gray-400 text-center mt-4">
-            {tx(
-              'נתוני חוקים שעברו — כנסת 25 בלבד · מקור: API פתוח של הכנסת · מתעדכן כל שעה',
-              'Bills passed data — 25th Knesset only · Source: Knesset Open Data API · Updated hourly'
-            )}
-          </p>
-        )}
       </section>
 
       {/* ── SECTION 3: Population Impact Heatmap ───────────────────────────── */}

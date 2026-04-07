@@ -61,13 +61,14 @@ export async function GET(request: Request) {
     let groupFilterIDs: number[] | null = null;
     if (isValidGroup && (stance === 'pro' || stance === 'anti')) {
       try {
-        const { data: gcData } = await supabaseAdmin
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: gcData } = await (supabaseAdmin as any)
           .from('bill_classifications')
           .select('bill_id')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .eq(group as any, stance);
-        groupFilterIDs = (gcData ?? []).map((r: { bill_id: number }) => r.bill_id);
-        if (groupFilterIDs.length === 0) {
+          .eq(group, stance);
+        const ids = (gcData ?? []).map((r: { bill_id: number }) => r.bill_id);
+        groupFilterIDs = ids;
+        if (ids.length === 0) {
           return NextResponse.json({ bills: [], total: 0, page, pageSize: limit });
         }
       } catch {
@@ -109,12 +110,14 @@ export async function GET(request: Request) {
     if (billIDs.length > 0) {
       try {
         const classCols = `bill_id, ${GROUPS.join(', ')}, financial_impact, financial_note, benefits, hurts, confidence, summary`;
-        const { data: classData } = await supabaseAdmin
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: classData } = await (supabaseAdmin as any)
           .from('bill_classifications')
           .select(classCols)
           .in('bill_id', billIDs);
-        for (const row of (classData ?? [])) {
-          classMap.set((row as { bill_id: number }).bill_id, row as Record<string, unknown>);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const row of ((classData ?? []) as any[])) {
+          classMap.set(row.bill_id as number, row as Record<string, unknown>);
         }
       } catch {
         // classifications table missing or columns missing — just skip

@@ -10,7 +10,8 @@ import { RealMember, RealBill } from '@/lib/knesset-api';
 import ImpactGrid from '@/components/ImpactGrid';
 import type { ImpactData } from '@/app/api/impact/route';
 import type { BillClassification } from '@/lib/classifications';
-import { ArrowLeft, ArrowRight, Sparkles, Loader2, RefreshCw, ExternalLink, ThumbsUp, ThumbsDown, Minus, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Loader2, RefreshCw, ExternalLink, ThumbsUp, ThumbsDown, Minus, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock, XCircle, Newspaper } from 'lucide-react';
+import type { NewsArticle } from '@/app/api/member-news/route';
 import { GROUPS, GROUP_LABEL, STANCE_COLOR, FINANCIAL_COLOR, type Stance, type FinancialImpact } from '@/lib/classifications';
 
 interface RealVote {
@@ -86,6 +87,8 @@ export default function MemberProfile() {
   const [summary, setSummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -106,6 +109,14 @@ export default function MemberProfile() {
               .then(d => { setVotes(d.votes ?? []); setVoteCount(d.voteCount ?? null); })
               .catch(() => {})
               .finally(() => setVotesLoading(false));
+
+            // Fetch news (non-blocking)
+            setNewsLoading(true);
+            fetch(`/api/member-news?personID=${found.PersonID}`)
+              .then(r => r.json())
+              .then(d => setNews(d.articles ?? []))
+              .catch(() => {})
+              .finally(() => setNewsLoading(false));
 
             Promise.all([
               fetch(`/api/member-bills?personID=${found.PersonID}`).then(r => r.json()),
@@ -853,6 +864,90 @@ export default function MemberProfile() {
             {lang === 'he' ? 'מוצגות 20 ההצבעות האחרונות' : 'Showing 20 most recent votes'}
           </p>
         )}
+      </div>
+
+      {/* ── News section ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mt-6">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Newspaper size={16} className="text-blue-600" />
+          <h2 className="font-bold text-gray-800">
+            {lang === 'he' ? 'כתבות אחרונות' : 'Recent News'}
+          </h2>
+          {news.length > 0 && (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-normal">
+              {news.length}
+            </span>
+          )}
+        </div>
+
+        {newsLoading ? (
+          <div className="flex items-center gap-2 text-gray-400 p-5">
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-sm">{lang === 'he' ? 'מחפש כתבות…' : 'Searching for articles…'}</span>
+          </div>
+        ) : news.length === 0 ? (
+          <p className="text-sm text-gray-400 py-8 text-center">
+            {lang === 'he' ? 'לא נמצאו כתבות.' : 'No articles found.'}
+          </p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {news.map((article, i) => (
+              <div key={i} className="px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    {/* Title + source */}
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-gray-900 text-sm hover:text-blue-700 leading-snug block mb-1"
+                      dir="rtl"
+                    >
+                      {article.title}
+                    </a>
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                      {article.source && <span className="font-medium text-gray-500">{article.source}</span>}
+                      {article.source && article.publishedAt && <span>·</span>}
+                      {article.publishedAt && (
+                        <span>
+                          {new Date(article.publishedAt).toLocaleDateString(
+                            lang === 'he' ? 'he-IL' : 'en-US',
+                            { day: 'numeric', month: 'short', year: 'numeric' }
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* AI summary */}
+                    {article.aiSummary && (
+                      <div className="flex items-start gap-1.5">
+                        <Sparkles size={11} className="text-purple-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-gray-600 leading-relaxed" dir="rtl">
+                          {article.aiSummary}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 text-gray-300 hover:text-blue-500 transition-colors mt-0.5"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-400 text-center py-3 border-t border-gray-100">
+          {lang === 'he'
+            ? 'מקור: Google News · מסוכם ע"י AI · מתעדכן כל 12 שעות'
+            : 'Source: Google News · AI-summarized · Refreshed every 12 hours'}
+        </p>
       </div>
     </div>
   );

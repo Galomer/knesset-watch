@@ -80,17 +80,20 @@ function parseRSS(xml: string): { title: string; url: string; source: string; pu
 // ── AI summary for one article ────────────────────────────────────────────────
 
 async function summariseArticle(memberName: string, title: string, snippet: string): Promise<string> {
+  // Only summarise when we have a real snippet with actual Hebrew content
+  if (!snippet || snippet.trim().length < 40) return '';
+  // Count Hebrew characters — skip if mostly URLs/junk
+  const hebrewChars = (snippet.match(/[\u05D0-\u05EA]/g) ?? []).length;
+  if (hebrewChars < 25) return '';
+  const text = `${title} — ${snippet}`.slice(0, 500);
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
+      max_tokens: 120,
+      system: 'אתה עוזר שמסכם קטעי חדשות בעברית. ענה תמיד בעברית בלבד. שני משפטים קצרים בלבד, ללא כותרות.',
       messages: [{
         role: 'user',
-        content: `כתבה על חבר הכנסת ${memberName}:
-כותרת: ${title}
-תקציר: ${snippet}
-
-סכם בשני משפטים קצרים בעברית מה נאמר או נעשה על ידי חבר הכנסת בכתבה זו. התייחס רק למה שכתוב. אל תוסיף מידע.`,
+        content: `סכם בשני משפטים קצרים בעברית מה נאמר על ${memberName} בטקסט הבא:\n\n${text}`,
       }],
     });
     return (msg.content[0] as { type: string; text: string }).text?.trim() ?? '';

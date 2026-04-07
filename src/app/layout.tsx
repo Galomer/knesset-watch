@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
-import { Poppins } from 'next/font/google';
+import { Heebo } from 'next/font/google';
 import './globals.css';
 import { LangProvider } from '@/lib/lang-context';
 import Navbar from '@/components/Navbar';
 
-const poppins = Poppins({
-  subsets: ['latin'],
+const heebo = Heebo({
+  subsets: ['latin', 'hebrew'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
+  variable: '--font-heebo',
   display: 'swap',
 });
 
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" dir="ltr">
-      <body className={`${poppins.variable} min-h-screen bg-gray-50 flex flex-col`}>
+      <body className={`${heebo.variable} min-h-screen bg-gray-50 flex flex-col`}>
         <LangProvider>
           <Navbar />
           <main className="flex-1">

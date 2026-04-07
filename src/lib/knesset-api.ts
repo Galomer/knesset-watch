@@ -128,8 +128,27 @@ export interface MKVote {
   Decision: 'for' | 'against' | 'abstain' | 'absent';
 }
 
-// ─── English Name / Faction Maps ─────────────────────────────────────────────
-// The Knesset API only provides Hebrew names. These mappings supply English translations.
+// ─── Display Name Maps ────────────────────────────────────────────────────────
+// The Knesset API returns long official Hebrew names. These maps supply proper
+// short display names in both Hebrew and English.
+
+export const FACTION_HE: Record<number, string> = {
+  1095: 'ש"ס',
+  1096: 'הליכוד',
+  1097: 'הציונות הדתית',
+  1098: 'המחנה הממלכתי',
+  1099: 'רע"ם',
+  1100: 'העבודה',
+  1101: 'יהדות התורה',
+  1102: 'יש עתיד',
+  1103: 'חד"ש-תע"ל',
+  1104: 'ישראל ביתנו',
+  1105: 'הציונות הדתית',
+  1106: 'עוצמה יהודית',
+  1107: 'נועם',
+  1108: 'הימין הממלכתי',
+  1110: 'כחול לבן',
+};
 
 export const FACTION_ENG: Record<number, string> = {
   1095: 'Shas',
@@ -144,9 +163,9 @@ export const FACTION_ENG: Record<number, string> = {
   1104: 'Yisrael Beytenu',
   1105: 'Religious Zionism',
   1106: 'Otzma Yehudit',
-  1107: "No'am",
+  1107: 'Noam',
   1108: 'National Right',
-  1110: 'National Unity',
+  1110: 'Blue and White',
 };
 
 export const COALITION_FACTION_IDS = new Set([1095, 1096, 1101, 1105, 1106, 1107, 1108]);
@@ -450,7 +469,7 @@ export async function fetchRealMembers(): Promise<RealMember[]> {
       GenderID: person.GenderID,
       Email: person.Email,
       FactionID: factionID,
-      FactionName: faction?.FactionName ?? '',
+      FactionName: factionID ? (FACTION_HE[factionID] ?? faction?.FactionName ?? '') : '',
       FactionNameEng: factionID ? (FACTION_ENG[factionID] ?? faction?.FactionName ?? '') : '',
       RoleHe: roleHe,
       RoleEng: roleEng,
@@ -512,7 +531,7 @@ export async function fetchRealParties(): Promise<RealParty[]> {
     .filter(f => f.IsCurrent)
     .map(f => ({
       FactionID: f.FactionID,
-      Name: f.Name.trim(),
+      Name: FACTION_HE[f.FactionID] ?? f.Name.trim(),
       NameEng: FACTION_ENG[f.FactionID] ?? f.Name.trim(),
       Seats: membersByFaction.get(f.FactionID)?.length ?? 0,
       IsCoalition: COALITION_FACTION_IDS.has(f.FactionID),

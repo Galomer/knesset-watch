@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchRealMembers, getMockMembers, RealMember } from '@/lib/knesset-api';
+import { fetchRealMembers, getMockMembers, RealMember, FACTION_HE, FACTION_ENG } from '@/lib/knesset-api';
 import { supabaseAdmin, DbMember } from '@/lib/supabase';
 
 export const revalidate = 3600;
@@ -14,8 +14,8 @@ function dbToRealMember(m: DbMember): RealMember {
     GenderID: m.gender_id ?? 251,
     Email: m.email,
     FactionID: m.faction_id,
-    FactionName: m.faction_name,
-    FactionNameEng: m.faction_name_eng,
+    FactionName: m.faction_id ? (FACTION_HE[m.faction_id] ?? m.faction_name) : m.faction_name,
+    FactionNameEng: m.faction_id ? (FACTION_ENG[m.faction_id] ?? m.faction_name_eng) : m.faction_name_eng,
     RoleHe: m.role_he,
     RoleEng: m.role_eng,
     GovMinistryName: null,

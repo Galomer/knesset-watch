@@ -158,7 +158,7 @@ function DonutChart({ parties, totalSeats, lang }: { parties: PartyStats[]; tota
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: getColor(p.FactionID, p.IsCoalition), opacity: p.IsCoalition ? 1 : 0.65 }}
             />
-            {lang === 'he' ? p.Name.split(' ')[0] : p.NameEng.split(' ')[0]}
+            {lang === 'he' ? p.Name : p.NameEng}
             <span className="text-gray-400">{((p.Seats / (parties.reduce((s, x) => s + x.Seats, 0) || 120)) * 100).toFixed(0)}%</span>
           </span>
         ))}
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
             <div className="mt-3 flex flex-wrap gap-1">
               {coalition.map(p => (
                 <span key={p.FactionID} className="text-xs bg-blue-500 px-2 py-0.5 rounded-full">
-                  {lang === 'he' ? p.Name.split(' ')[0] : p.NameEng.split(' ')[0]} {p.Seats}
+                  {lang === 'he' ? p.Name : p.NameEng} {p.Seats}
                 </span>
               ))}
             </div>
@@ -241,7 +241,7 @@ export default function AnalyticsPage() {
             <div className="mt-3 flex flex-wrap gap-1">
               {opposition.map(p => (
                 <span key={p.FactionID} className="text-xs bg-gray-600 px-2 py-0.5 rounded-full">
-                  {lang === 'he' ? p.Name.split(' ')[0] : p.NameEng.split(' ')[0]} {p.Seats}
+                  {lang === 'he' ? p.Name : p.NameEng} {p.Seats}
                 </span>
               ))}
             </div>

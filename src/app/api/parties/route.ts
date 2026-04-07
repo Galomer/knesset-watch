@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchRealParties, COALITION_FACTION_IDS, FACTION_ENG } from '@/lib/knesset-api';
+import { fetchRealParties, COALITION_FACTION_IDS, FACTION_ENG, FACTION_HE } from '@/lib/knesset-api';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const revalidate = 3600;
@@ -24,8 +24,8 @@ export async function GET() {
       const parties = factions
         .map(f => ({
           FactionID: f.faction_id,
-          Name: f.name,
-          NameEng: f.name_eng || FACTION_ENG[f.faction_id] || f.name,
+          Name: FACTION_HE[f.faction_id] || f.name,
+          NameEng: FACTION_ENG[f.faction_id] || f.name_eng || f.name,
           Seats: membersByFaction.get(f.faction_id)?.length ?? 0,
           IsCoalition: f.is_coalition ?? COALITION_FACTION_IDS.has(f.faction_id),
           Members: membersByFaction.get(f.faction_id) ?? [],

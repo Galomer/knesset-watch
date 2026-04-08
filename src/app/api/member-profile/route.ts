@@ -26,6 +26,9 @@ export interface MemberPoliticalProfile {
   stanceNotes: Record<string, string>;
   propagandaNote: string;
   hypocrisyNote: string;
+  primaryBeneficiaries: string[];   // population groups this MK mainly serves
+  primaryHurt: string[];            // population groups this MK's agenda disadvantages
+  populationNote: string;           // one sentence explaining the population pattern
   generatedAt: string;
   fromCache: boolean;
 }
@@ -52,7 +55,7 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 2. Gather data about the member ──────────────────────────────────────
-  const [memberRes, billsRes, votesRes, newsRes] = await Promise.allSettled([
+  const [memberRes, billsRes, votesRes, newsRes, classRes] = await Promise.allSettled([
     supabaseAdmin
       .from('members')
       .select('full_name, faction_name, role_he')
@@ -78,6 +81,13 @@ export async function GET(request: NextRequest) {
       .eq('person_id', personID)
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(10),
+
+    // Population impact from classified bills
+    supabaseAdmin
+      .from('bill_initiators')
+      .select('bill_classifications!inner(benefits, hurts, seniors, children, lgbt, ultra_orthodox, religious, liberals, women, soldiers, working_class, unemployed, arabs, druze, secular)')
+      .eq('person_id', personID)
+      .limit(100),
   ]);
 
   const member = memberRes.status === 'fulfilled' ? memberRes.value.data : null;
@@ -87,6 +97,8 @@ export async function GET(request: NextRequest) {
   const bills = billsRes.status === 'fulfilled' ? (billsRes.value.data ?? []) as any[] : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const votes = votesRes.status === 'fulfilled' ? (votesRes.value.data ?? []) as any[] : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const classifiedBills = classRes.status === 'fulfilled' ? (classRes.value.data ?? []) as any[] : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const news  = newsRes.status  === 'fulfilled' ? (newsRes.value.data  ?? []) as any[] : [];
 
@@ -111,6 +123,39 @@ export async function GET(request: NextRequest) {
     .map(n => `• ${n.title}${n.ai_summary ? ': ' + n.ai_summary : ''}`)
     .join('\n');
 
+  // Aggregate population impact from classified bills
+  const groupNames = ['seniors','children','lgbt','ultra_orthodox','religious','liberals','women','soldiers','working_class','unemployed','arabs','druze','secular'];
+  const groupCounts: Record<string, { pro: number; anti: number }> = {};
+  for (const g of groupNames) groupCounts[g] = { pro: 0, anti: 0 };
+  const benefitCount: Record<string, number> = {};
+  const hurtCount: Record<string, number> = {};
+
+  for (const row of classifiedBills) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = (row as any).bill_classifications;
+    if (!c) continue;
+    for (const g of groupNames) {
+      if (c[g] === 'pro')  groupCounts[g].pro++;
+      if (c[g] === 'anti') groupCounts[g].anti++;
+    }
+    for (const b of (c.benefits ?? [])) benefitCount[b] = (benefitCount[b] ?? 0) + 1;
+    for (const h of (c.hurts ?? []))    hurtCount[h]    = (hurtCount[h]    ?? 0) + 1;
+  }
+
+  const topBenefited = Object.entries(benefitCount).sort((a,b) => b[1]-a[1]).slice(0,5).map(([g,n]) => `${g}(${n})`).join(', ');
+  const topHurt      = Object.entries(hurtCount).sort((a,b) => b[1]-a[1]).slice(0,5).map(([g,n]) => `${g}(${n})`).join(', ');
+  const groupSummary = groupNames
+    .map(g => `${g}: +${groupCounts[g].pro}/-${groupCounts[g].anti}`)
+    .filter(s => !s.endsWith('+0/-0'))
+    .join(', ');
+
+  const populationContext = classifiedBills.length > 0
+    ? `\nניתוח השפעה על אוכלוסיות (מ-${classifiedBills.length} חוקים מסווגים):
+קבוצות מרוויחות: ${topBenefited || 'אין'}
+קבוצות נפגעות: ${topHurt || 'אין'}
+פירוט: ${groupSummary || 'אין'}`
+    : '';
+
   const prompt = `נתח את חבר/ת הכנסת הבא/ה על בסיס הנתונים המסופקים בלבד.
 
 שם: ${member.full_name}
@@ -125,6 +170,7 @@ ${voteLines || 'אין נתונים'}
 
 כתבות אחרונות:
 ${newsLines || 'אין נתונים'}
+${populationContext}
 
 ---
 קונצנזוסים ישראליים שיש לקחת בחשבון:
@@ -144,6 +190,8 @@ ${newsLines || 'אין נתונים'}
 ניקוד תעמולה (0–100): עד כמה חה"כ משתמש בהסתה, שקרים או מניפולציות. 0=עניני לחלוטין, 100=תעמולה מסוכנת.
 ניקוד צביעות (0–100): עד כמה יש פער בין הצהרות פומביות לבין הצבעות/חקיקה. 0=עקבי לחלוטין, 100=סתירה מוחלטת.
 
+חשוב: בשדה primary_beneficiaries — ציין את האוכלוסיות שהחקיקה והעמדות של חה"כ זה בעיקר מיטיבות עמן. היה מפורש ואמיץ — אם חה"כ מסיעה חרדית שמקדם פטור מגיוס ותקציבי ישיבות, כתוב ultra_orthodox. אם חה"כ שמקדם הגנות להט"ב, כתוב lgbt. בסס על הנתונים בלבד.
+
 ענה JSON בלבד:
 {
   "stance_women": <-2 עד 2>,
@@ -154,7 +202,7 @@ ${newsLines || 'אין נתונים'}
   "stance_settlements": <-2 עד 2>,
   "propaganda_score": <0–100>,
   "hypocrisy_score": <0–100>,
-  "political_summary": "<2–3 משפטים בעברית, ניתוח עמדות ואג'נדה>",
+  "political_summary": "<2–3 משפטים בעברית, ניתוח עמדות ואג'נדה — כולל לאיזו אוכלוסייה הוא בעיקר פועל>",
   "stance_notes": {
     "women": "<משפט אחד בעברית>",
     "lgbt": "<משפט אחד בעברית>",
@@ -164,7 +212,10 @@ ${newsLines || 'אין נתונים'}
     "settlements": "<משפט אחד בעברית>"
   },
   "propaganda_note": "<משפט אחד בעברית>",
-  "hypocrisy_note": "<משפט אחד בעברית>"
+  "hypocrisy_note": "<משפט אחד בעברית>",
+  "primary_beneficiaries": ["רשימת מפתחות באנגלית מתוך: seniors,children,lgbt,ultra_orthodox,religious,liberals,women,soldiers,working_class,unemployed,arabs,druze,secular — מסודרת לפי חשיבות"],
+  "primary_hurt": ["קבוצות שהאג'נדה שלו פוגעת בהן — אותם מפתחות"],
+  "population_note": "<משפט אחד בעברית המסביר בבירור לאיזו אוכלוסייה חה"כ זה בעיקר פועל ומי לא נהנה מסדר היום שלו>"
 }
 
 בסס את הניתוח אך ורק על הנתונים המסופקים. אל תמציא מידע שאינו בנתונים.`;
@@ -203,11 +254,14 @@ ${newsLines || 'אין נתונים'}
     stance_settlements:  clamp(raw.stance_settlements, -2, 2),
     propaganda_score:  clamp(raw.propaganda_score,  0, 100),
     hypocrisy_score:   clamp(raw.hypocrisy_score,   0, 100),
-    political_summary: String(raw.political_summary ?? ''),
-    stance_notes:      raw.stance_notes ?? {},
-    propaganda_note:   String(raw.propaganda_note ?? ''),
-    hypocrisy_note:    String(raw.hypocrisy_note ?? ''),
-    generated_at:      new Date().toISOString(),
+    political_summary:       String(raw.political_summary ?? ''),
+    stance_notes:            raw.stance_notes ?? {},
+    propaganda_note:         String(raw.propaganda_note ?? ''),
+    hypocrisy_note:          String(raw.hypocrisy_note ?? ''),
+    primary_beneficiaries:   Array.isArray(raw.primary_beneficiaries) ? raw.primary_beneficiaries : [],
+    primary_hurt:            Array.isArray(raw.primary_hurt) ? raw.primary_hurt : [],
+    population_note:         String(raw.population_note ?? ''),
+    generated_at:            new Date().toISOString(),
   };
 
   // ── 6. Store in DB ────────────────────────────────────────────────────────
@@ -232,9 +286,12 @@ function toProfile(row: any, fromCache: boolean): MemberPoliticalProfile {
     hypocrisyScore:     row.hypocrisy_score,
     politicalSummary:   row.political_summary,
     stanceNotes:        row.stance_notes ?? {},
-    propagandaNote:     row.propaganda_note,
-    hypocrisyNote:      row.hypocrisy_note,
-    generatedAt:        row.generated_at,
+    propagandaNote:         row.propaganda_note,
+    hypocrisyNote:          row.hypocrisy_note,
+    primaryBeneficiaries:   row.primary_beneficiaries ?? [],
+    primaryHurt:            row.primary_hurt ?? [],
+    populationNote:         row.population_note ?? '',
+    generatedAt:            row.generated_at,
     fromCache,
   };
 }

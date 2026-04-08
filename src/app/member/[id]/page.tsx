@@ -522,11 +522,62 @@ export default function MemberProfile() {
             { key: 'settlements', val: p.stanceSettlements, he: 'התנחלויות',      en: 'Settlements' },
           ];
 
+          const groupLabel = (key: string) => {
+            const g = key as import('@/lib/classifications').Group;
+            return GROUP_LABEL[g] ? (lang === 'he' ? GROUP_LABEL[g].he : GROUP_LABEL[g].en) : key;
+          };
+
           return (
             <div className="space-y-5">
               {/* Political summary */}
               {p.politicalSummary && (
                 <p className="text-sm text-gray-700 leading-relaxed" dir="rtl">{p.politicalSummary}</p>
+              )}
+
+              {/* Population impact */}
+              {(p.primaryBeneficiaries?.length > 0 || p.primaryHurt?.length > 0) && (
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      {lang === 'he' ? 'מי מרוויח מהסדר היום שלו?' : 'Who benefits from their agenda?'}
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {p.primaryBeneficiaries?.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-green-700 block mb-1.5">
+                          {lang === 'he' ? '▲ מרוויחים בעיקר' : '▲ Primary beneficiaries'}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.primaryBeneficiaries.map((g: string) => (
+                            <span key={g} className="text-xs bg-green-100 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                              {groupLabel(g)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {p.primaryHurt?.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-red-700 block mb-1.5">
+                          {lang === 'he' ? '▼ פחות נהנים' : '▼ Less served'}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.primaryHurt.map((g: string) => (
+                            <span key={g} className="text-xs bg-red-100 text-red-800 px-2.5 py-1 rounded-full font-medium">
+                              {groupLabel(g)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {p.populationNote && (
+                      <p className="text-xs text-gray-500 leading-snug border-t border-gray-100 pt-2" dir="rtl">
+                        {p.populationNote}
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Issue stances */}

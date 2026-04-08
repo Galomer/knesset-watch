@@ -31,7 +31,16 @@ function buildPrompt(bills: { bill_id: number; name: string; knesset_num: number
 
   return `You are classifying Israeli Knesset bills by their societal impact on population groups in Israel.
 Analyze each Hebrew bill title and classify it.
-If a title is too vague or procedural, use "neutral" for all stances and "unknown" for financial_impact.
+
+CRITICAL RULES:
+- Be explicit and decisive about WHO MAINLY BENEFITS. If a bill allocates funds or rights to a specific group (e.g. ultra-orthodox yeshiva students, settlers, soldiers), name that group clearly as the primary beneficiary.
+- "benefits" MUST list groups in order of impact — the FIRST entry is the PRIMARY beneficiary. If the bill clearly targets one group, list only that group.
+- "hurts" MUST list groups that are explicitly disadvantaged or excluded by this bill.
+- Do NOT default to "neutral" when context strongly implies a beneficiary. A yeshiva funding bill benefits ultra_orthodox. A settlement expansion bill benefits religious/settlers. An LGBTQ+ rights bill benefits lgbt.
+- Only use "neutral" for all stances if the bill is truly procedural with no identifiable group impact.
+- If a title is too vague, use "neutral" for stances but still try to infer "benefits" from context.
+
+Population groups (use exact keys): seniors, children, lgbt, ultra_orthodox, religious, liberals, women, soldiers, working_class, unemployed, arabs, druze, secular
 
 Bills:
 ${list}
@@ -40,9 +49,9 @@ Return ONLY a valid JSON array — no markdown, no explanation — with exactly 
 [
   {
     "bill_id": <number>,
-    "summary": "one sentence in Hebrew (max 20 words) explaining what this bill does",
-    "benefits": ["group names that clearly benefit, from the list below"],
-    "hurts": ["group names that are clearly hurt"],
+    "summary": "one sentence in Hebrew (max 20 words) explaining what this bill does and who it mainly serves",
+    "benefits": ["primary beneficiary group first, then others — use exact group keys from the list above"],
+    "hurts": ["groups explicitly disadvantaged by this bill — empty array if none"],
     "financial_impact": "positive|negative|neutral|unknown",
     "financial_note": "one English sentence on impact to a middle-class Israeli family, or empty string",
     "stances": {

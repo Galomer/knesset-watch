@@ -138,18 +138,24 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fetch from DB
-  const { data: rows, error } = await supabaseAdmin
-    .from('member_votes')
-    .select(`
-      vote_id,
-      vote_result,
-      knesset_num,
-      vote_headers(vote_date, description, item_desc, is_accepted, total_for, total_against, total_abstain, knesset_num)
-    `)
-    .eq('person_id', personID)
-    .order('vote_id', { ascending: false })
-    .limit(limit);
+  // Fetch from DB (votes + accurate total count)
+  const [{ data: rows, error }, { count: totalCount }] = await Promise.all([
+    supabaseAdmin
+      .from('member_votes')
+      .select(`
+        vote_id,
+        vote_result,
+        knesset_num,
+        vote_headers(vote_date, description, item_desc, is_accepted, total_for, total_against, total_abstain, knesset_num)
+      `)
+      .eq('person_id', personID)
+      .order('vote_id', { ascending: false })
+      .limit(limit),
+    supabaseAdmin
+      .from('member_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('person_id', personID),
+  ]);
 
   if (error) {
     return NextResponse.json({ votes: [], synced: !!syncEntry, error: error.message });
@@ -219,7 +225,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     votes: rawVotes,
     synced: true,
-    voteCount: syncEntry?.vote_count ?? rawVotes.length,
+    voteCount: totalCount ?? rawVotes.length,
     note: 'K25 voting data is not yet available in the Knesset Open Data API',
   });
 }

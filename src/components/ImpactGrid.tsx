@@ -33,20 +33,6 @@ export default function ImpactGrid({ data, lang, singleRow = false }: Props) {
 
     return (
       <div dir={isRTL ? 'rtl' : 'ltr'}>
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          {[
-            { key: 'positive', label: lang === 'he' ? 'חיובי לכיס' : 'Pro-wallet',  color: 'bg-green-50 border-green-200 text-green-700', val: row.financial.positive },
-            { key: 'negative', label: lang === 'he' ? 'שלילי לכיס' : 'Anti-wallet', color: 'bg-red-50 border-red-200 text-red-700',     val: row.financial.negative },
-            { key: 'neutral',  label: lang === 'he' ? 'ניטרלי'     : 'Neutral',     color: 'bg-gray-50 border-gray-200 text-gray-600',   val: row.financial.neutral },
-            { key: 'unknown',  label: lang === 'he' ? 'לא ברור'    : 'Unclear',     color: 'bg-gray-50 border-gray-200 text-gray-400',   val: row.financial.unknown },
-          ].map(f => (
-            <div key={f.key} className={`rounded-xl border p-3 text-center ${f.color}`}>
-              <div className="text-xl font-bold">{f.val}</div>
-              <div className="text-xs mt-0.5">{f.label}</div>
-            </div>
-          ))}
-        </div>
-
         <div className="space-y-2">
           {sorted.map(g => {
             const { pro, anti, neutral, scorePct } = row.groups[g];

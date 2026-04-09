@@ -89,15 +89,44 @@ export async function GET(req: Request) {
       memberNames.set(m.person_id, { name: m.full_name, nameEng: m.full_name_eng });
     }
 
-    // ── 2. Fetch bill initiators for K25, with classification ──────────────
-    // We go from bill_classifications (join bills for knesset filter, join initiators for person)
+    // ── 2. Fetch classifications + initiators separately, join in JS ─────────
+    // (bill_classifications and bill_initiators both FK to bills — no direct FK between them)
     const groupCols = GROUPS.join(', ');
-    const selectStr = `bill_id, financial_impact, ${groupCols}, bills!inner(knesset_num), bill_initiators(person_id)`;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: classRows } = await (supabaseAdmin as any)
-      .from('bill_classifications')
-      .select(selectStr)
-      .eq('bills.knesset_num', CURRENT_KNESSET);
+
+    async function fetchAllPages<T>(table: string, select: string): Promise<T[]> {
+      const PAGE = 1000;
+      const rows: T[] = [];
+      let offset = 0;
+      while (true) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: page, error } = await (supabaseAdmin as any)
+          .from(table).select(select).range(offset, offset + PAGE - 1);
+        if (error || !page || page.length === 0) break;
+        rows.push(...page);
+        if (page.length < PAGE) break;
+        offset += PAGE;
+      }
+      return rows;
+    }
+
+    const [rawClass, rawInit] = await Promise.all([
+      fetchAllPages<Record<string, unknown>>('bill_classifications', `bill_id, financial_impact, ${groupCols}`),
+      fetchAllPages<{ bill_id: number; person_id: number }>('bill_initiators', 'bill_id, person_id'),
+    ]);
+
+    // Build bill_id → person_ids map
+    const billToPersons = new Map<number, number[]>();
+    for (const r of rawInit) {
+      const arr = billToPersons.get(r.bill_id) ?? [];
+      arr.push(r.person_id);
+      billToPersons.set(r.bill_id, arr);
+    }
+
+    // Attach initiators to classification rows
+    const classRows = rawClass.map(c => ({
+      ...c,
+      bill_initiators: (billToPersons.get(c.bill_id as number) ?? []).map(pid => ({ person_id: pid })),
+    }));
 
     if (!classRows || classRows.length === 0) {
       if (type === 'member') {
@@ -163,14 +192,9 @@ export async function GET(req: Request) {
       }
     }
 
-    // Fetch total bill counts per faction
-    const { data: allInitiators } = await supabaseAdmin
-      .from('bill_initiators')
-      .select('person_id, bills!inner(knesset_num)')
-      .eq('bills.knesset_num', CURRENT_KNESSET);
-
-    for (const row of allInitiators ?? []) {
-      const fid = personToFaction.get(row.person_id);
+    // Count total bills per faction from all initiators (rawInit already has everything)
+    for (const { person_id } of rawInit) {
+      const fid = personToFaction.get(person_id);
       if (fid) factionBillCount.set(fid, (factionBillCount.get(fid) ?? 0) + 1);
     }
 

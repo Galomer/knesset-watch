@@ -8,7 +8,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { COALITION_FACTION_IDS, FACTION_ENG, CURRENT_KNESSET } from '@/lib/knesset-api';
+import { COALITION_FACTION_IDS, FACTION_ENG, FACTION_HE } from '@/lib/knesset-api';
 import { GROUPS, type Group } from '@/lib/classifications';
 
 export const revalidate = 3600;
@@ -45,12 +45,15 @@ function emptyGroups(): Record<Group, GroupStats> {
   ) as Record<Group, GroupStats>;
 }
 
-function finalise(groups: Record<Group, GroupStats>): Record<Group, GroupStats> {
+// scorePct: direction score (pro-anti)/(pro+anti)*100 — used for color only.
+// When pro+anti is small, this gives ±100% which is directionally correct.
+// Raw counts (pro, anti) are shown as the main cell content.
+function finalise(groups: Record<Group, GroupStats>, _totalClassified: number): Record<Group, GroupStats> {
   for (const g of GROUPS) {
     const { pro, anti } = groups[g];
     groups[g].score = pro - anti;
-    const total = pro + anti;
-    groups[g].scorePct = total > 0 ? Math.round(((pro - anti) / total) * 100) : 0;
+    const stance = pro + anti;
+    groups[g].scorePct = stance > 0 ? Math.round(((pro - anti) / stance) * 100) : 0;
   }
   return groups;
 }
@@ -161,7 +164,7 @@ export async function GET(req: Request) {
         nameEng: memberInfo.nameEng,
         totalBills: totalBills ?? 0,
         classifiedBills: classified,
-        groups: finalise(groups),
+        groups: finalise(groups, classified),
         financial,
       };
       return NextResponse.json(result);
@@ -207,16 +210,19 @@ export async function GET(req: Request) {
     const factionNames = new Map((factions ?? []).map(f => [f.faction_id, { name: f.name, nameEng: f.name_eng }]));
 
     const result: ImpactData[] = Array.from(factionGroups.entries())
-      .map(([fid, groups]) => ({
-        id: fid,
-        name: factionNames.get(fid)?.name ?? String(fid),
-        nameEng: factionNames.get(fid)?.nameEng ?? FACTION_ENG[fid] ?? String(fid),
-        isCoalition: COALITION_FACTION_IDS.has(fid),
-        totalBills: factionBillCount.get(fid) ?? 0,
-        classifiedBills: factionClassified.get(fid) ?? 0,
-        groups: finalise(groups),
-        financial: factionFinancial.get(fid)!,
-      }))
+      .map(([fid, groups]) => {
+        const classified = factionClassified.get(fid) ?? 0;
+        return {
+          id: fid,
+          name: FACTION_HE[fid] ?? factionNames.get(fid)?.name ?? String(fid),
+          nameEng: FACTION_ENG[fid] ?? factionNames.get(fid)?.nameEng ?? String(fid),
+          isCoalition: COALITION_FACTION_IDS.has(fid),
+          totalBills: factionBillCount.get(fid) ?? 0,
+          classifiedBills: classified,
+          groups: finalise(groups, classified),
+          financial: factionFinancial.get(fid)!,
+        };
+      })
       .filter(p => p.classifiedBills > 0)
       .sort((a, b) => b.totalBills - a.totalBills);
 

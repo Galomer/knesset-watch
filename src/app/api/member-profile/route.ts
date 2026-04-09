@@ -34,7 +34,7 @@ export interface MemberPoliticalProfile {
 }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const CACHE_TTL_DAYS = 7;
+const CACHE_TTL_DAYS = 30;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -224,7 +224,7 @@ ${populationContext}
   let raw: Record<string, unknown>;
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: `אתה מנתח פוליטי המדמה ישראלי עובד ורציונלי — אדם שרוצה לחיות בשלום ובכבוד, מחויב לביטחון ישראל ולדמוקרטיה, מזועזע מטבח ה-7 באוקטובר, ומצפה מנבחרי ציבור לעקביות ויושר. הנך מנתח מעמדות של הציבור הישראלי הרחב — לא ימין קיצוני ולא שמאל קיצוני. ענה תמיד ב-JSON בלבד, ללא כל טקסט נוסף.`,
       messages: [{ role: 'user', content: prompt }],

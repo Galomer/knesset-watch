@@ -83,6 +83,8 @@ export default function MemberProfile() {
   const [votes, setVotes] = useState<RealVote[]>([]);
   const [votesLoading, setVotesLoading] = useState(false);
   const [voteCount, setVoteCount] = useState<number | null>(null);
+  const [voteForCount, setVoteForCount] = useState<number | null>(null);
+  const [voteAgainstCount, setVoteAgainstCount] = useState<number | null>(null);
   const [expandedVote, setExpandedVote] = useState<number | null>(null);
   const [voteSummaries, setVoteSummaries] = useState<Map<number, VoteSummaryData | 'loading' | 'error'>>(new Map());
   const [summary, setSummary] = useState('');
@@ -110,7 +112,12 @@ export default function MemberProfile() {
             // Fetch votes separately (may be slow on first load — triggers DB sync)
             fetch(`/api/member-votes?personID=${found.PersonID}&limit=20`)
               .then(r => r.json())
-              .then(d => { setVotes(d.votes ?? []); setVoteCount(d.voteCount ?? null); })
+              .then(d => {
+                setVotes(d.votes ?? []);
+                setVoteCount(d.voteCount ?? null);
+                setVoteForCount(d.forCount ?? null);
+                setVoteAgainstCount(d.againstCount ?? null);
+              })
               .catch(() => {})
               .finally(() => setVotesLoading(false));
 
@@ -351,9 +358,11 @@ export default function MemberProfile() {
           </div>
           <div className="text-xs text-gray-600 mt-1 font-medium">{lang === 'he' ? 'הצבעות' : 'Votes'}</div>
           <div className="text-xs text-gray-400">
-            {forCount > 0 && <span className="text-green-600">{forCount}✓ </span>}
-            {againstCount > 0 && <span className="text-red-500">{againstCount}✗</span>}
-            {forCount === 0 && againstCount === 0 && <span>{lang === 'he' ? 'מהכנסות הקודמות' : 'prev. Knessets'}</span>}
+            {voteForCount !== null && voteForCount > 0 && <span className="text-green-600">{voteForCount}✓ </span>}
+            {voteAgainstCount !== null && voteAgainstCount > 0 && <span className="text-red-500">{voteAgainstCount}✗</span>}
+            {(voteForCount === 0 && voteAgainstCount === 0) || (voteForCount === null && voteAgainstCount === null)
+              ? <span>{lang === 'he' ? 'מהכנסות הקודמות' : 'prev. Knessets'}</span>
+              : null}
           </div>
         </div>
 

@@ -144,8 +144,8 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fetch from DB (votes + accurate total count)
-  const [{ data: rows, error }, { count: totalCount }] = await Promise.all([
+  // Fetch from DB: paginated votes + total count + for/against breakdown
+  const [{ data: rows, error }, { count: totalCount }, { count: forCount }, { count: againstCount }] = await Promise.all([
     supabaseAdmin
       .from('member_votes')
       .select(`
@@ -161,6 +161,16 @@ export async function GET(request: Request) {
       .from('member_votes')
       .select('*', { count: 'exact', head: true })
       .eq('person_id', personID),
+    supabaseAdmin
+      .from('member_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('person_id', personID)
+      .eq('vote_result', 1),
+    supabaseAdmin
+      .from('member_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('person_id', personID)
+      .eq('vote_result', 2),
   ]);
 
   if (error) {
@@ -231,7 +241,9 @@ export async function GET(request: Request) {
   return NextResponse.json({
     votes: rawVotes,
     synced: true,
-    voteCount: totalCount ?? rawVotes.length,
+    voteCount:    totalCount    ?? rawVotes.length,
+    forCount:     forCount      ?? null,
+    againstCount: againstCount  ?? null,
     note: 'K25 voting data is not yet available in the Knesset Open Data API',
   });
 }

@@ -29,13 +29,19 @@ async function vFetch<T>(path: string): Promise<T[]> {
 async function syncMemberVotes(personID: number): Promise<number> {
   const paddedID = String(personID).padStart(9, '0');
 
-  // Fetch all votes for this member
-  const memberVoteRows = await vFetch<{
-    vote_id: number;
-    kmmbr_id: string;
-    vote_result: number;
-    knesset_num: number;
-  }>(`vote_rslts_kmmbr_shadow?$filter=kmmbr_id eq '${paddedID}'&$select=vote_id,kmmbr_id,vote_result,knesset_num&$orderby=vote_id desc&$top=500`);
+  // Fetch all votes for this member — paginate since API caps at 100/page
+  type VoteRow = { vote_id: number; kmmbr_id: string; vote_result: number; knesset_num: number };
+  const memberVoteRows: VoteRow[] = [];
+  const PAGE = 100;
+  let skip = 0;
+  while (true) {
+    const page = await vFetch<VoteRow>(
+      `vote_rslts_kmmbr_shadow?$filter=kmmbr_id eq '${paddedID}'&$select=vote_id,kmmbr_id,vote_result,knesset_num&$orderby=vote_id desc&$top=${PAGE}&$skip=${skip}`
+    );
+    memberVoteRows.push(...page);
+    if (page.length < PAGE) break;
+    skip += PAGE;
+  }
 
   if (memberVoteRows.length === 0) {
     // Mark as synced with 0 votes (so we don't retry)
@@ -128,13 +134,13 @@ export async function GET(request: Request) {
     .eq('person_id', personID)
     .single();
 
-  // Sync if first time
-  if (!syncEntry) {
+  // Sync if: first time, OR previous sync was capped at exactly 100 (old bug — API paginates at 100)
+  const likelyCapped = syncEntry && syncEntry.vote_count > 0 && syncEntry.vote_count % 100 === 0;
+  if (!syncEntry || likelyCapped) {
     try {
       await syncMemberVotes(personID);
     } catch (err) {
       console.error('Vote sync failed for', personID, err);
-      // Return empty rather than erroring — the member page should degrade gracefully
     }
   }
 

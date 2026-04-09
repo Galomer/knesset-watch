@@ -26,7 +26,7 @@ export interface NewsArticle {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CACHE_TTL_HOURS = 24;
+const CACHE_TTL_HOURS = 168; // 7 days
 const MAX_ARTICLES = 8;
 
 // ── Parse Google News RSS ─────────────────────────────────────────────────────

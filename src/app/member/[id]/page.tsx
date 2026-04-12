@@ -210,12 +210,16 @@ export default function MemberProfile() {
     try {
       const res = await fetch(`/api/member-profile?personID=${member.PersonID}`);
       const data = await res.json();
-      setPoliticalProfile(data);
-      setProfileGenerated(true);
-    } catch {
-      setProfileGenerated(true); // stop spinner even on error
+      if (!res.ok || data?.error) {
+        console.error('Profile error:', data?.error);
+      } else {
+        setPoliticalProfile(data);
+      }
+    } catch (err) {
+      console.error('Profile fetch failed:', err);
     } finally {
       setProfileLoading(false);
+      setProfileGenerated(true);
     }
   }
 
@@ -495,6 +499,12 @@ export default function MemberProfile() {
             {lang === 'he'
               ? 'ניתוח עמדות פוליטיות, סולמות ליברליזם ושמרנות, עמדות בנושאים מרכזיים ומדדי תעמולה וצביעות — על בסיס חקיקה, הצבעות וכתבות.'
               : 'Analysis of political positions, liberal/conservative scale, stances on key issues, and propaganda/hypocrisy scores — based on bills, votes, and news.'}
+          </p>
+        )}
+
+        {!politicalProfile && !profileLoading && profileGenerated && (
+          <p className="text-sm text-red-500">
+            {lang === 'he' ? 'הניתוח נכשל. נסה שוב.' : 'Analysis failed. Please try again.'}
           </p>
         )}
 

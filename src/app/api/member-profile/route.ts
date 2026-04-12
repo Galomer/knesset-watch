@@ -82,12 +82,12 @@ export async function GET(request: NextRequest) {
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(10),
 
-    // Population impact from classified bills
+    // Get bill IDs for this member, then fetch classifications separately
     supabaseAdmin
       .from('bill_initiators')
-      .select('bill_classifications!inner(benefits, hurts, seniors, children, lgbt, ultra_orthodox, religious, liberals, women, soldiers, working_class, unemployed, arabs, druze, secular)')
+      .select('bill_id')
       .eq('person_id', personID)
-      .limit(100),
+      .limit(200),
   ]);
 
   const member = memberRes.status === 'fulfilled' ? memberRes.value.data : null;
@@ -98,9 +98,21 @@ export async function GET(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const votes = votesRes.status === 'fulfilled' ? (votesRes.value.data ?? []) as any[] : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const classifiedBills = classRes.status === 'fulfilled' ? (classRes.value.data ?? []) as any[] : [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const news  = newsRes.status  === 'fulfilled' ? (newsRes.value.data  ?? []) as any[] : [];
+
+  // Fetch classifications for this member's bills (two-step: IDs → classifications)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const billIDRows = classRes.status === 'fulfilled' ? (classRes.value.data ?? []) as any[] : [];
+  const memberBillIDs = billIDRows.map((r: any) => r.bill_id).filter(Boolean);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let classifiedBills: any[] = [];
+  if (memberBillIDs.length > 0) {
+    const { data: classData } = await supabaseAdmin
+      .from('bill_classifications')
+      .select('bill_id, benefits, hurts, seniors, children, lgbt, ultra_orthodox, religious, liberals, women, soldiers, working_class, unemployed, arabs, druze, secular')
+      .in('bill_id', memberBillIDs.slice(0, 200));
+    classifiedBills = classData ?? [];
+  }
 
   // ── 3. Build prompt context ───────────────────────────────────────────────
   const billLines = bills
